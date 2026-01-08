@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 
-const generatedId = (prefix) => {
+const generateId = (prefix) => {
     const randomChars = crypto.randomBytes(8).toString('hex');
     return `${prefix}${randomChars}`;
 };
 
-module.exports = { generatedId };
+module.exports = { generateId };

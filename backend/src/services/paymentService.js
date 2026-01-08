@@ -8,11 +8,15 @@ const createPayment = async (order, merchantId, paymentData) => {
     // 1. Generate ID
     let paymentId;
     let isUnique = false;
-    while (!isUnique) {
+    let attempts = 0;
+    while (!isUnique && attempts < 5) {
         paymentId = generateId('pay_');
         const check = await db.query('SELECT 1 FROM payments WHERE id = $1', [paymentId]);
         if (check.rowCount === 0) isUnique = true;
+        attempts++;
     }
+
+    if (!isUnique) throw new Error("Failed to generate Payment ID");
 
     // 2. Insert Initial Record (Status: PROCESSING)
     const insertQuery = `
@@ -24,11 +28,11 @@ const createPayment = async (order, merchantId, paymentData) => {
     `;
 
     const values = [
-        paymentId, 
-        order.id, 
-        merchantId, 
-        order.amount, 
-        order.currency, 
+        paymentId,
+        order.id,
+        merchantId,
+        order.amount,
+        order.currency,
         paymentData.method,
         paymentData.vpa || null,
         paymentData.card_network || null,
@@ -47,7 +51,7 @@ const createPayment = async (order, merchantId, paymentData) => {
 };
 
 const processPaymentSimulation = async (payment) => {
-    // Load Config 
+    // Load Config
     const isTestMode = process.env.TEST_MODE === 'true';
     const upiSuccessRate = parseFloat(process.env.UPI_SUCCESS_RATE || 0.90);
     const cardSuccessRate = parseFloat(process.env.CARD_SUCCESS_RATE || 0.95);
@@ -68,7 +72,6 @@ const processPaymentSimulation = async (payment) => {
     // 2. Determine Outcome
     let isSuccess;
     if (isTestMode) {
-        // Fix: Default to true if variable is not set 
         const testSuccessEnv = process.env.TEST_PAYMENT_SUCCESS;
         if (testSuccessEnv === undefined) {
             isSuccess = true;
@@ -80,7 +83,7 @@ const processPaymentSimulation = async (payment) => {
         isSuccess = Math.random() < threshold;
     }
 
-    // 3. Update Status 
+    // 3. Update Status
     const status = isSuccess ? 'success' : 'failed';
     const error_code = isSuccess ? null : 'PAYMENT_FAILED';
     const error_desc = isSuccess ? null : 'Bank rejected transaction';

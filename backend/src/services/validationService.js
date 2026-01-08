@@ -6,7 +6,6 @@ const validateVPA = (vpa) => {
 };
 
 const validateLuhn = (number) => {
-    [cite_start]//
     const sanitized = number.replace(/[\s-]/g, '');
     if (!/^\d{13,19}$/.test(sanitized)) return false;
 
@@ -30,7 +29,7 @@ const validateLuhn = (number) => {
 };
 
 const detectCardNetwork = (number) => {
-    [cite_start]//
+    //
     const sanitized = number.replace(/[\s-]/g, '');
 
     if (/^4/.test(sanitized)) return 'visa';
@@ -42,7 +41,6 @@ const detectCardNetwork = (number) => {
 };
 
 const validateExpiry = (month, year) => {
-    [cite_start]//
     const current = new Date();
     const currentMonth = current.getMonth() + 1; // 0-indexed
     const currentYear = current.getFullYear();

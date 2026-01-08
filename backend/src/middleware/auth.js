@@ -23,7 +23,7 @@ const authenticateMerchant = async (req, res, next) => {
             return res.status(401).json({
                 error: {
                     code: 'AUTHENTICATION_ERROR',
-                    description: "Invalid API credentials"
+                    description: 'Invalid API credentials'
                 }
             });
         }

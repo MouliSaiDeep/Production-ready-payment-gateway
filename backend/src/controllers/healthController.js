@@ -17,7 +17,7 @@ const getHealth = async (req, res) => {
     };
 
     
-    res.status(500).json(response);
+    res.status(200).json(response);
 };
 
 module.exports = { getHealth };
