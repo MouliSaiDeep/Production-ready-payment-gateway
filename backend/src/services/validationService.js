@@ -1,10 +1,12 @@
 const validateVPA = (vpa) => {
-    // Regex: ^[a-zA-Z0-9.-]+@[a-zA-Z0-9]+$
-    const vpaRegex = /^[a-zA-Z0-9.-]+@[a-zA-Z0-9]+$/;
+    // Regex: ^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$ 
+    // Fixed: Added underscore (_) to the allowed characters list
+    const vpaRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$/;
     return vpaRegex.test(vpa);
 };
 
 const validateLuhn = (number) => {
+    [cite_start]//
     const sanitized = number.replace(/[\s-]/g, '');
     if (!/^\d{13,19}$/.test(sanitized)) return false;
 
@@ -28,17 +30,19 @@ const validateLuhn = (number) => {
 };
 
 const detectCardNetwork = (number) => {
+    [cite_start]//
     const sanitized = number.replace(/[\s-]/g, '');
-    
+
     if (/^4/.test(sanitized)) return 'visa';
     if (/^5[1-5]/.test(sanitized)) return 'mastercard';
     if (/^3[47]/.test(sanitized)) return 'amex';
-    if (/^60|^65|^8[1-9]/.test(sanitized)) return 'rupay';
-    
+    if (/^60|^65|^8[1-9]/.test(sanitized)) return 'rupay'; // 81-89
+
     return 'unknown';
 };
 
 const validateExpiry = (month, year) => {
+    [cite_start]//
     const current = new Date();
     const currentMonth = current.getMonth() + 1; // 0-indexed
     const currentYear = current.getFullYear();

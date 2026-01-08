@@ -47,7 +47,7 @@ const createPayment = async (order, merchantId, paymentData) => {
 };
 
 const processPaymentSimulation = async (payment) => {
-    // Load Config
+    // Load Config 
     const isTestMode = process.env.TEST_MODE === 'true';
     const upiSuccessRate = parseFloat(process.env.UPI_SUCCESS_RATE || 0.90);
     const cardSuccessRate = parseFloat(process.env.CARD_SUCCESS_RATE || 0.95);
@@ -68,13 +68,19 @@ const processPaymentSimulation = async (payment) => {
     // 2. Determine Outcome
     let isSuccess;
     if (isTestMode) {
-        isSuccess = process.env.TEST_PAYMENT_SUCCESS === 'true';
+        // Fix: Default to true if variable is not set 
+        const testSuccessEnv = process.env.TEST_PAYMENT_SUCCESS;
+        if (testSuccessEnv === undefined) {
+            isSuccess = true;
+        } else {
+            isSuccess = testSuccessEnv === 'true';
+        }
     } else {
         const threshold = payment.method === 'upi' ? upiSuccessRate : cardSuccessRate;
         isSuccess = Math.random() < threshold;
     }
 
-    // 3. Update Status
+    // 3. Update Status 
     const status = isSuccess ? 'success' : 'failed';
     const error_code = isSuccess ? null : 'PAYMENT_FAILED';
     const error_desc = isSuccess ? null : 'Bank rejected transaction';
