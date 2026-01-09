@@ -98,5 +98,35 @@ const getPaymentById = async (id) => {
     const result = await db.query('SELECT * FROM payments WHERE id = $1', [id]);
     return result.rows[0];
 };
+const getPaymentsByMerchant = async (merchantId) => {
+    const result = await db.query(
+        'SELECT * FROM payments WHERE merchant_id = $1 ORDER BY created_at DESC',
+        [merchantId]
+    );
+    return result.rows;
+};
 
-module.exports = { createPayment, getPaymentById };
+const getMerchantStats = async (merchantId) => {
+    const query = `
+        SELECT 
+            COUNT(*) as total_transactions,
+            COALESCE(SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END), 0) as total_amount,
+            COUNT(CASE WHEN status = 'success' THEN 1 END) as success_count
+        FROM payments 
+        WHERE merchant_id = $1
+    `;
+    const result = await db.query(query, [merchantId]);
+    const data = result.rows[0];
+
+    const total = parseInt(data.total_transactions);
+    const success = parseInt(data.success_count);
+    const rate = total === 0 ? 0 : Math.round((success / total) * 100);
+
+    return {
+        total_transactions: total,
+        total_amount: parseInt(data.total_amount),
+        success_rate: rate
+    };
+};
+
+module.exports = { createPayment, getPaymentById, getPaymentsByMerchant, getMerchantStats };

@@ -84,4 +84,22 @@ const getPayment = async (req, res) => {
     }
 };
 
-module.exports = { createPayment, getPayment };
+const listPayments = async (req, res) => {
+    try {
+        const payments = await paymentService.getPaymentsByMerchant(req.merchant.id);
+        res.json(payments);
+    } catch (e) {
+        res.status(500).json({ error: 'Internal error' });
+    }
+};
+
+const getStats = async (req, res) => {
+    try {
+        const stats = await paymentService.getMerchantStats(req.merchant.id);
+        res.json(stats);
+    } catch (e) {
+        res.status(500).json({ error: 'Internal error' });
+    }
+};
+
+module.exports = { createPayment, getPayment, listPayments, getStats };

@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { createPayment, getPayment } = require('../controllers/paymentController');
+const paymentController = require('../controllers/paymentController');
 const authenticateMerchant = require('../middleware/auth');
 
-// Secure Endpoints
-router.post('/', authenticateMerchant, createPayment);
-router.get('/:id', authenticateMerchant, getPayment);
+router.post('/', authenticateMerchant, paymentController.createPayment);
+router.post('/public', paymentController.createPayment);
+router.get('/stats', authenticateMerchant, paymentController.getStats); // New Stats Route
+router.get('/', authenticateMerchant, paymentController.listPayments);  // New List Route
+router.get('/:id', paymentController.getPayment);
 
 module.exports = router;
