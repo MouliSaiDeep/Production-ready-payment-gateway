@@ -1,15 +1,13 @@
-const orderService = require('../services/orderService');
 const paymentService = require('../services/paymentService');
+const orderService = require('../services/orderService');
 const validation = require('../services/validationService');
 
 const createPayment = async (req, res) => {
     const { order_id, method, vpa, card } = req.body;
     const merchantId = req.merchant ? req.merchant.id : null; // Handle public/private access
 
-    // 1. Validate Order
     try {
-        // If authenticated (merchantId exists), ensure order belongs to merchant
-        // If public (checkout page), just ensure order exists
+        // 1. Validate Order
         const order = await orderService.getOrderById(order_id, merchantId);
 
         if (!order) {
@@ -38,6 +36,15 @@ const createPayment = async (req, res) => {
                 });
             }
 
+            // --- NEW: STRICT CVV CHECK (3 or 4 Digits Only) ---
+            const cvvRegex = /^[0-9]{3,4}$/;
+            if (!cvvRegex.test(card.cvv)) {
+                return res.status(400).json({
+                    error: { code: 'INVALID_CARD', description: 'CVV must be 3 or 4 digits' }
+                });
+            }
+            // --------------------------------------------------
+
             // Luhn Check
             if (!validation.validateLuhn(card.number)) {
                 return res.status(400).json({
@@ -54,6 +61,7 @@ const createPayment = async (req, res) => {
 
             // Network Detection & Last4
             paymentData.card_network = validation.detectCardNetwork(card.number);
+            // This line is critical for the "0000" failure trigger to work
             paymentData.card_last4 = card.number.replace(/[\s-]/g, '').slice(-4);
 
         } else {

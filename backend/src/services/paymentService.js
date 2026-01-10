@@ -71,7 +71,15 @@ const processPaymentSimulation = async (payment) => {
 
     // 2. Determine Outcome
     let isSuccess;
-    if (isTestMode) {
+
+    // --- NEW LOGIC: Force Failure for Testing ---
+    // If user enters 'fail@bank' or card ending in '0000', fail the transaction.
+    if (payment.vpa === 'fail@bank' || payment.card_last4 === '0000') {
+        isSuccess = false;
+        console.log(`Forcing failure for test payment: ${payment.id}`);
+    }
+    // ---------------------------------------------
+    else if (isTestMode) {
         const testSuccessEnv = process.env.TEST_PAYMENT_SUCCESS;
         if (testSuccessEnv === undefined) {
             isSuccess = true;
@@ -98,6 +106,7 @@ const getPaymentById = async (id) => {
     const result = await db.query('SELECT * FROM payments WHERE id = $1', [id]);
     return result.rows[0];
 };
+
 const getPaymentsByMerchant = async (merchantId) => {
     const result = await db.query(
         'SELECT * FROM payments WHERE merchant_id = $1 ORDER BY created_at DESC',
