@@ -1,14 +1,13 @@
 const db = require('../config/db');
-const { generateId } = require('../utils/helpers');
+const { generateId } = require('../utils/helpers'); // Using your existing helper
 
-// Helper for delay
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
+// 1. CREATE PAYMENT (Now lighter - just saves to DB)
 const createPayment = async (order, merchantId, paymentData) => {
-    // 1. Generate ID
+    // Generate ID
     let paymentId;
     let isUnique = false;
     let attempts = 0;
+
     while (!isUnique && attempts < 5) {
         paymentId = generateId('pay_');
         const check = await db.query('SELECT 1 FROM payments WHERE id = $1', [paymentId]);
@@ -18,12 +17,14 @@ const createPayment = async (order, merchantId, paymentData) => {
 
     if (!isUnique) throw new Error("Failed to generate Payment ID");
 
-    // 2. Insert Initial Record (Status: PROCESSING)
+    // Insert Record (Status: PENDING)
+    // We REMOVED the synchronous processing logic here.
+    // The Queue Worker will handle the processing in the background.
     const insertQuery = `
         INSERT INTO payments (
             id, order_id, merchant_id, amount, currency, method, status, 
-            vpa, card_network, card_last4, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7, $8, $9, NOW(), NOW())
+            vpa, card_network, card_last4, captured, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, $8, $9, false, NOW(), NOW())
         RETURNING *;
     `;
 
@@ -40,73 +41,16 @@ const createPayment = async (order, merchantId, paymentData) => {
     ];
 
     const result = await db.query(insertQuery, values);
-    const payment = result.rows[0];
-
-    // 3. Process Payment (Synchronous Simulation)
-    await processPaymentSimulation(payment);
-
-    // 4. Return updated payment
-    const finalResult = await db.query('SELECT * FROM payments WHERE id = $1', [paymentId]);
-    return finalResult.rows[0];
+    return result.rows[0];
 };
 
-const processPaymentSimulation = async (payment) => {
-    // Load Config
-    const isTestMode = process.env.TEST_MODE === 'true';
-    const upiSuccessRate = parseFloat(process.env.UPI_SUCCESS_RATE || 0.90);
-    const cardSuccessRate = parseFloat(process.env.CARD_SUCCESS_RATE || 0.95);
-
-    // 1. Determine Delay
-    let delayMs;
-    if (isTestMode) {
-        delayMs = parseInt(process.env.TEST_PROCESSING_DELAY || 1000);
-    } else {
-        const min = parseInt(process.env.PROCESSING_DELAY_MIN || 5000);
-        const max = parseInt(process.env.PROCESSING_DELAY_MAX || 10000);
-        delayMs = Math.floor(Math.random() * (max - min + 1) + min);
-    }
-
-    // Wait
-    await sleep(delayMs);
-
-    // 2. Determine Outcome
-    let isSuccess;
-
-    // --- NEW LOGIC: Force Failure for Testing ---
-    // If user enters 'fail@bank' or card ending in '0000', fail the transaction.
-    if (payment.vpa === 'fail@bank' || payment.card_last4 === '0000') {
-        isSuccess = false;
-        console.log(`Forcing failure for test payment: ${payment.id}`);
-    }
-    // ---------------------------------------------
-    else if (isTestMode) {
-        const testSuccessEnv = process.env.TEST_PAYMENT_SUCCESS;
-        if (testSuccessEnv === undefined) {
-            isSuccess = true;
-        } else {
-            isSuccess = testSuccessEnv === 'true';
-        }
-    } else {
-        const threshold = payment.method === 'upi' ? upiSuccessRate : cardSuccessRate;
-        isSuccess = Math.random() < threshold;
-    }
-
-    // 3. Update Status
-    const status = isSuccess ? 'success' : 'failed';
-    const error_code = isSuccess ? null : 'PAYMENT_FAILED';
-    const error_desc = isSuccess ? null : 'Bank rejected transaction';
-
-    await db.query(
-        'UPDATE payments SET status = $1, error_code = $2, error_description = $3, updated_at = NOW() WHERE id = $4',
-        [status, error_code, error_desc, payment.id]
-    );
-};
-
+// 2. GET PAYMENT BY ID (Unchanged)
 const getPaymentById = async (id) => {
     const result = await db.query('SELECT * FROM payments WHERE id = $1', [id]);
     return result.rows[0];
 };
 
+// 3. GET PAYMENTS BY MERCHANT (Unchanged)
 const getPaymentsByMerchant = async (merchantId) => {
     const result = await db.query(
         'SELECT * FROM payments WHERE merchant_id = $1 ORDER BY created_at DESC',
@@ -115,6 +59,7 @@ const getPaymentsByMerchant = async (merchantId) => {
     return result.rows;
 };
 
+// 4. GET MERCHANT STATS (Unchanged)
 const getMerchantStats = async (merchantId) => {
     const query = `
         SELECT 
@@ -138,4 +83,9 @@ const getMerchantStats = async (merchantId) => {
     };
 };
 
-module.exports = { createPayment, getPaymentById, getPaymentsByMerchant, getMerchantStats };
+module.exports = {
+    createPayment,
+    getPaymentById,
+    getPaymentsByMerchant,
+    getMerchantStats
+};
