@@ -5,7 +5,7 @@ const db = require('../config/db');
 async function initializeDatabase() {
     // 1. Get Client
     const client = await db.pool.connect();
-    
+
     try {
         console.log('Starting database initialization...');
 
@@ -15,33 +15,35 @@ async function initializeDatabase() {
         await client.query(schemaSql);
         console.log('Schema applied successfully');
 
-        
+        // 3. SEED DATA (Updated for Deliverable 2)
         const seedQuery = `
-            INSERT INTO merchants (id, name, email, api_key, api_secret, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-            ON CONFLICT (email) DO NOTHING
+            INSERT INTO merchants (id, name, email, api_key, api_secret, webhook_secret, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+            ON CONFLICT (email) DO UPDATE SET
+                webhook_secret = EXCLUDED.webhook_secret
             RETURNING id;
         `;
 
         const values = [
-            '550e8400-e29b-41d4-a716-446655440000', //  ID
-            'Test Merchant',                        //  Name
-            'test@example.com',                     //  Email
-            'key_test_abc123',                      //  API Key
-            'secret_test_xyz789'                    //  API Secret
+            '550e8400-e29b-41d4-a716-446655440000', // ID
+            'Test Merchant',                        // Name
+            'test@example.com',                     // Email
+            'key_test_abc123',                      // API Key
+            'secret_test_xyz789',                   // API Secret
+            'whsec_test_abc123'                     // Webhook Secret (NEW REQUIREMENT)
         ];
 
         const res = await client.query(seedQuery, values);
 
         if (res.rowCount > 0) {
-            console.log('Test merchant seeded successfully.');
+            console.log('Test merchant seeded/updated successfully.');
         } else {
-            console.log('Test merchant already exists, skipped seeding.');
+            console.log('Test merchant already up to date.');
         }
 
     } catch (error) {
         console.error('Database initialization failed:', error);
-        throw error; 
+        throw error;
     } finally {
         client.release();
     }

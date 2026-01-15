@@ -18,6 +18,35 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis_gateway
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: gateway_worker
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
+      TEST_MODE: ${TEST_MODE}
+      TEST_PAYMENT_SUCCESS: ${TEST_PAYMENT_SUCCESS}
+      TEST_PROCESSING_DELAY: ${TEST_PROCESSING_DELAY}
+      WEBHOOK_RETRY_INTERVALS_TEST: ${WEBHOOK_RETRY_INTERVALS_TEST}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   api:
     build:
       context: ./backend
@@ -26,6 +55,7 @@ services:
       - "${PORT}:${PORT}"
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
       PORT: ${PORT}
       TEST_MERCHANT_EMAIL: ${TEST_MERCHANT_EMAIL}
       TEST_API_KEY: ${TEST_API_KEY}
@@ -37,6 +67,8 @@ services:
       CARD_SUCCESS_RATE: ${CARD_SUCCESS_RATE}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   dashboard:
