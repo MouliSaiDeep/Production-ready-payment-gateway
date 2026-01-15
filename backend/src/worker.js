@@ -1,10 +1,11 @@
 const { paymentQueue, webhookQueue, refundQueue } = require('./config/queue');
 const processPayment = require('./jobs/processPayment');
+const deliverWebhook = require('./jobs/deliverWebhook');
+const processRefund = require('./jobs/processRefund'); // Import new job
 const db = require('./config/db');
 
 console.log('🚀 Worker Service Starting...');
 
-// Connect to DB (Ensure DB is ready)
 db.pool.connect()
     .then(() => console.log('✅ Worker connected to Database'))
     .catch(err => console.error('❌ Worker DB connection failed', err));
@@ -14,14 +15,18 @@ paymentQueue.process(async (job) => {
     return processPayment(job);
 });
 
-// 2. Process Webhook Jobs (Placeholder for next phase)
+// 2. Process Webhook Jobs
 webhookQueue.process(async (job) => {
-    console.log(`[Job] Webhook delivery placeholder for event: ${job.data.event}`);
+    return deliverWebhook(job);
 });
 
-// 3. Process Refund Jobs (Placeholder)
+webhookQueue.on('failed', async (job, err) => {
+    console.log(`[Queue] Webhook job ${job.id} failed. Attempt ${job.attemptsMade}.`);
+});
+
+// 3. Process Refund Jobs (UPDATED)
 refundQueue.process(async (job) => {
-    console.log(`[Job] Refund processing placeholder for ID: ${job.data.refundId}`);
+    return processRefund(job);
 });
 
 console.log('✅ Worker Service is listening for jobs...');

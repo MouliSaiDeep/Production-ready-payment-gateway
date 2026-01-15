@@ -4,6 +4,11 @@ const { getHealth } = require('./controllers/healthController');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const db = require('./config/db');
+const webhookController = require('./controllers/webhookController');
+const jobController = require('./controllers/jobController');
+const paymentController = require('./controllers/paymentController');
+
+const authenticateMerchant = require('./middleware/auth');
 
 const app = express();
 
@@ -17,7 +22,11 @@ app.get('/health', getHealth);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 
-// 3. Test Endpoint (Required)
+// Spec requires: GET /api/v1/refunds/{id}
+app.get('/api/v1/refunds/:id', authenticateMerchant, paymentController.getRefund);
+// ---------------------------------------------
+
+// 3. Test Endpoint
 app.get('/api/v1/test/merchant', async (req, res) => {
     try {
         const result = await db.query("SELECT * FROM merchants WHERE email = 'test@example.com'");
@@ -29,20 +38,31 @@ app.get('/api/v1/test/merchant', async (req, res) => {
     }
 });
 
-// 4. Public Routes for Checkout (Handling the unauthenticated checkout requirement) 
-// We explicitly add a public route for fetching order details and creating payments without headers
+// 4. Public Routes for Checkout
 const { getOrderById } = require('./services/orderService');
 const { createPayment: createPublicPayment } = require('./controllers/paymentController');
 
 app.get('/api/v1/orders/:id/public', async (req, res) => {
     try {
-        const order = await getOrderById(req.params.id); // No merchant ID filter
+        const order = await getOrderById(req.params.id);
         if (!order) return res.status(404).json({ error: 'Order not found' });
         res.json(order);
     } catch (e) {
         res.status(500).json({ error: 'Internal error' });
     }
 });
+
 app.post('/api/v1/payments/public', createPublicPayment);
+
+// 5. Webhook Routes
+const webhookRouter = express.Router();
+webhookRouter.get('/', authenticateMerchant, webhookController.listWebhooks);
+webhookRouter.post('/:id/retry', authenticateMerchant, webhookController.retryWebhook);
+app.use('/api/v1/webhooks', webhookRouter);
+
+// 6. Test/Job Routes
+const testRouter = express.Router();
+testRouter.get('/jobs/status', jobController.getJobStatus);
+app.use('/api/v1/test', testRouter);
 
 module.exports = app;
