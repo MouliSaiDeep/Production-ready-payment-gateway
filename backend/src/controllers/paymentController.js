@@ -1,10 +1,11 @@
+const crypto = require('crypto');
 const paymentService = require('../services/paymentService');
 const orderService = require('../services/orderService');
 const validation = require('../services/validationService');
-const { paymentQueue, refundQueue, webhookQueue } = require('../config/queue'); // Added webhookQueue
+const { paymentQueue, refundQueue, webhookQueue } = require('../config/queue');
 const db = require('../config/db');
 
-// --- 1. CREATE PAYMENT (Async + Idempotency + Webhooks) ---
+// --- 1. CREATE PAYMENT ---
 const createPayment = async (req, res) => {
     const { order_id, method, vpa, card } = req.body;
     const merchantId = req.merchant ? req.merchant.id : null;
@@ -48,18 +49,12 @@ const createPayment = async (req, res) => {
         // C. Create Payment Record
         const payment = await paymentService.createPayment(order, order.merchant_id, paymentData);
 
-        // --- NEW: Trigger Early Webhooks (created & pending) ---
-        // We use a helper function to structure the payload consistently
+        // --- Trigger Webhooks ---
         const webhookPayload = { payment };
+        await webhookQueue.add({ merchantId, event: 'payment.created', payload: webhookPayload });
+        await webhookQueue.add({ merchantId, event: 'payment.pending', payload: webhookPayload });
 
-        await webhookQueue.add({
-            merchantId, event: 'payment.created', payload: webhookPayload
-        });
-        await webhookQueue.add({
-            merchantId, event: 'payment.pending', payload: webhookPayload
-        });
-
-        // D. Enqueue Processing Job
+        // D. Enqueue Job
         await paymentQueue.add({ paymentId: payment.id });
 
         // E. Save Idempotency
@@ -80,13 +75,19 @@ const createPayment = async (req, res) => {
     }
 };
 
-// --- 2. CREATE REFUND (Async + Webhooks) ---
+// --- 2. CREATE REFUND ---
 const createRefund = async (req, res) => {
     const { payment_id } = req.params;
     const { amount, reason } = req.body;
     const merchantId = req.merchant.id;
 
     try {
+        if (!amount || isNaN(amount) || amount <= 0) {
+            return res.status(400).json({
+                error: { code: 'BAD_REQUEST_ERROR', description: 'Invalid or missing amount' }
+            });
+        }
+
         const payRes = await db.query('SELECT * FROM payments WHERE id = $1 AND merchant_id = $2', [payment_id, merchantId]);
         if (payRes.rows.length === 0) return res.status(404).json({ error: { code: 'NOT_FOUND_ERROR', description: 'Payment not found' } });
         const payment = payRes.rows[0];
@@ -102,8 +103,10 @@ const createRefund = async (req, res) => {
             return res.status(400).json({ error: { code: 'BAD_REQUEST_ERROR', description: 'Refund amount exceeds available amount' } });
         }
 
-        const random = Math.random().toString(36).substring(2, 18);
+        // --- FIX: Use Crypto for exactly 16 hex chars ---
+        const random = crypto.randomBytes(8).toString('hex');
         const refundId = `rfnd_${random}`;
+        // ------------------------------------------------
 
         await db.query(
             `INSERT INTO refunds (id, payment_id, merchant_id, amount, reason, status, created_at)
@@ -111,7 +114,6 @@ const createRefund = async (req, res) => {
             [refundId, payment_id, merchantId, amount, reason]
         );
 
-        // --- NEW: Trigger Refund Created Webhook ---
         await webhookQueue.add({
             merchantId,
             event: 'refund.created',
@@ -135,11 +137,10 @@ const createRefund = async (req, res) => {
     }
 };
 
-// --- 3. GET REFUND (Missing Implementation) ---
+// --- 3. GET REFUND ---
 const getRefund = async (req, res) => {
     try {
         const { id } = req.params;
-        // In a real app, verify merchant ownership here
         const result = await db.query('SELECT * FROM refunds WHERE id = $1', [id]);
 
         if (result.rows.length === 0) {
@@ -194,7 +195,6 @@ const capturePayment = async (req, res) => {
 
         await db.query('UPDATE payments SET captured = true, updated_at = NOW() WHERE id = $1', [payment_id]);
 
-        // Refetch to return correct updated fields
         const updated = await db.query('SELECT * FROM payments WHERE id = $1', [payment_id]);
         res.status(200).json(updated.rows[0]);
 
