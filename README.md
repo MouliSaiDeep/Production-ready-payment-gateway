@@ -23,31 +23,31 @@ The system follows a microservices-style architecture orchestrated via Docker Co
 ```mermaid
 graph TD
     subgraph "External Users"
-        Customer[👤 Customer]
-        Merchant[💼 Merchant]
+        Customer["👤 Customer"]
+        Merchant["💼 Merchant"]
     end
 
     subgraph "Docker Container Network"
         direction TB
 
         subgraph "Public Zone"
-            Checkout[🛒 Checkout App (Port 5173)]
-            CDN[📦 SDK CDN (Port 3002)]
+            Checkout["🛒 Checkout App (Port 5173)"]
+            CDN["📦 SDK CDN (Port 3002)"]
         end
 
         subgraph "Private Zone"
-            Dashboard[📊 Dashboard App (Port 3000)]
-            Worker[👷 Job Worker]
-            TestMerchant[📡 Test Webhook Receiver (Port 4000)]
+            Dashboard["📊 Dashboard App (Port 3000)"]
+            Worker["👷 Job Worker"]
+            TestMerchant["📡 Test Webhook Receiver (Port 4000)"]
         end
 
         subgraph "Core System (Port 8000)"
-            API[⚙️ Backend API]
+            API["⚙️ Backend API"]
         end
 
         subgraph "Data Layer"
-            DB[(🗄️ PostgreSQL)]
-            Redis[(⚡ Redis)]
+            DB[("🗄️ PostgreSQL")]
+            Redis[("⚡ Redis")]
         end
     end
 
