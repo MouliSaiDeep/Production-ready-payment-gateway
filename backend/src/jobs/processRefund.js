@@ -42,6 +42,11 @@ const processRefund = async (job) => {
                     created_at: refund.created_at
                 }
             }
+        }, {
+            attempts: 5,
+            backoff: {
+                type: 'webhookBackoff'
+            }
         });
 
     } catch (error) {

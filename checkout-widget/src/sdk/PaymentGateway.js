@@ -1,5 +1,3 @@
-import './style.css';
-
 const CHECKOUT_URL = 'http://localhost:5173/checkout'; // Points to your React App
 
 class PaymentGateway {
@@ -18,33 +16,61 @@ class PaymentGateway {
     }
 
     open() {
-        // 1. Create Modal Structure
+        // 1. Inject Styles
+        const styleId = 'payment-gateway-styles';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+                .pg-modal-overlay {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background-color: rgba(0, 0, 0, 0.6);
+                    display: flex; justify-content: center; align-items: center;
+                    z-index: 99999;
+                }
+                .pg-modal-content {
+                    background: white; width: 400px; max-width: 90%; height: 600px; max-height: 90vh;
+                    border-radius: 8px; position: relative;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;
+                }
+                .pg-close-button {
+                    position: absolute; top: 10px; right: 15px;
+                    background: none; border: none; font-size: 24px; cursor: pointer; color: #666; z-index: 100;
+                }
+                .pg-payment-iframe {
+                    width: 100%; height: 100%; border: none;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // 2. Create Modal Structure
         this.modal = document.createElement('div');
         this.modal.id = 'payment-gateway-modal';
         this.modal.setAttribute('data-test-id', 'payment-modal');
 
         this.modal.innerHTML = `
-      <div class="modal-overlay">
-        <div class="modal-content">
-          <button data-test-id="close-modal-button" class="close-button">&times;</button>
+      <div class="pg-modal-overlay">
+        <div class="pg-modal-content">
+          <button data-test-id="close-modal-button" class="pg-close-button">&times;</button>
           <iframe 
             data-test-id="payment-iframe"
-            class="payment-iframe"
+            class="pg-payment-iframe"
             src="${CHECKOUT_URL}?order_id=${this.orderId}&embedded=true"
           ></iframe>
         </div>
       </div>
     `;
 
-        // 2. Attach Events
-        this.modal.querySelector('.close-button').addEventListener('click', () => {
+        // 3. Attach Events
+        this.modal.querySelector('.pg-close-button').addEventListener('click', () => {
             this.close();
         });
 
-        // 3. Append to Body
+        // 4. Append to Body
         document.body.appendChild(this.modal);
 
-        // 4. Setup PostMessage Listener
+        // 5. Setup PostMessage Listener
         window.addEventListener('message', this.handleMessage);
     }
 

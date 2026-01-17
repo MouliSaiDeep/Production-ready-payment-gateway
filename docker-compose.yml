@@ -101,5 +101,13 @@ services:
     volumes:
       - ./checkout-widget/dist:/usr/share/nginx/html:ro
 
+  # Test Merchant Webhook Receiver (Port 4000)
+  test_merchant:
+    build:
+      context: ./test-merchant
+    container_name: gateway_test_merchant
+    ports:
+      - "4000:4000"
+
 volumes:
   pg_data:

@@ -1,29 +1,48 @@
 import React from "react";
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 
-export default function DashboardLayout() {
+export default function DashboardLayout({ onLogout }) {
+  const navigate = useNavigate();
   const location = useLocation();
-  const isActive = (path) =>
-    location.pathname === path ? "nav-link active" : "nav-link";
+
+  const activeTab = location.pathname.split("/")[2] || "dashboard";
+
+  const handleNav = (path) => {
+    navigate(path);
+  };
+
+  const navItems = [
+    { id: "dashboard", label: "Overview", path: "/dashboard" },
+    { id: "transactions", label: "Transactions", path: "/transactions" },
+    { id: "webhooks", label: "Webhooks", path: "/webhooks" },
+    { id: "docs", label: "API Docs", path: "/api-docs" },
+  ];
 
   return (
-    <div className="dashboard-layout">
-      <div className="sidebar">
+    <div className="app-container">
+      {/* --- TOP TAB BAR --- */}
+      <div className="tab-nav-container">
         <div className="brand">Gateway UI</div>
-        <Link to="/dashboard" className={isActive("/dashboard")}>
-          Overview
-        </Link>
-        <Link
-          to="/dashboard/webhooks"
-          className={isActive("/dashboard/webhooks")}
-        >
-          Webhooks
-        </Link>
-        <Link to="/dashboard/docs" className={isActive("/dashboard/docs")}>
-          Integration Docs
-        </Link>
+
+        <div className="tabs-list">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleNav(item.path)}
+              className={`tab-btn ${location.pathname === item.path ? "active" : ""}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <button onClick={onLogout} className="logout-btn">
+          Logout
+        </button>
       </div>
-      <div className="main-content">
+
+      {/* --- PAGE CONTENT --- */}
+      <div className="content-wrapper">
         <Outlet />
       </div>
     </div>

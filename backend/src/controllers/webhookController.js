@@ -59,6 +59,9 @@ const retryWebhook = async (req, res) => {
             merchantId,
             event: log.event,
             payload: log.payload
+        }, {
+            attempts: 5,
+            backoff: { type: 'webhookBackoff' }
         });
 
         res.json({

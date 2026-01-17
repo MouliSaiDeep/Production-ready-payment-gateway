@@ -1,17 +1,18 @@
 # 💳 Payment Gateway Simulator
 
-A production-ready, containerized Payment Gateway Simulator built for the Capstone Project. This system simulates a real-world payment ecosystem, including a Merchant Dashboard, a Customer Checkout Page, and a robust Backend API with automated failure testing ("Magic Triggers").
+A production-ready, containerized Payment Gateway Simulator built for the Capstone Project. This system simulates a real-world payment ecosystem, including a Merchant Dashboard, a Customer Checkout Page, a robust Backend API with automated failure testing ("Magic Triggers"), and a dedicated **Test Merchant Webhook Receiver**.
 
 ---
 
 ## 🚀 Features
 
 - **Full-Stack Simulation:** Complete flow from Order Creation → Checkout → Payment Processing → Merchant Analytics.
-- **Dockerized Environment:** Entire stack (Frontend, Backend, Database) spins up with a single command.
-- **Merchant Dashboard:** Real-time transaction history, success rate analytics, and credential management.
+- **Dockerized Environment:** Entire stack (Frontend, Backend, Database, Redis, Webhook Receiver) spins up with a single command.
+- **Asynchronous Processing:** Uses Redis & BullMQ for reliable background job processing (Payments, Refunds, Webhooks).
+- **Merchant Dashboard:** Real-time transaction history, success rate analytics, webhook logs, and credential management.
 - **Universal Checkout:** Supports both Card (Luhn validation, Network detection) and UPI payment methods.
+- **Webhook System:** Robust event notification system with exponential backoff retries and "Test Merchant" auto-verification.
 - **Simulation Engine:** Deterministic testing using specific inputs to force Success, Failure, or Pending states.
-- **Auto-Seeding:** Database automatically initializes with test merchant credentials on startup.
 
 ---
 
@@ -29,20 +30,24 @@ graph TD
     subgraph "Docker Container Network"
         direction TB
 
-        subgraph "Public Zone (Port 3001)"
-            Checkout[🛒 Checkout App]
+        subgraph "Public Zone"
+            Checkout[🛒 Checkout App (Port 5173)]
+            CDN[📦 SDK CDN (Port 3002)]
         end
 
-        subgraph "Private Zone (Port 3000)"
-            Dashboard[📊 Dashboard App]
+        subgraph "Private Zone"
+            Dashboard[📊 Dashboard App (Port 3000)]
+            Worker[👷 Job Worker]
+            TestMerchant[📡 Test Webhook Receiver (Port 4000)]
         end
 
         subgraph "Core System (Port 8000)"
             API[⚙️ Backend API]
         end
 
-        subgraph "Data Layer (Port 5432)"
+        subgraph "Data Layer"
             DB[(🗄️ PostgreSQL)]
+            Redis[(⚡ Redis)]
         end
     end
 
@@ -51,6 +56,11 @@ graph TD
 
     Checkout -->|POST /payments| API
     Dashboard -->|GET /stats| API
+    
+    API -->|Enqueues Jobs| Redis
+    Redis -->|Processes Jobs| Worker
+    Worker -->|Writes| DB
+    Worker -->|Sends Webhooks| TestMerchant
 
     API -->|Read/Write| DB
     DB -- "Auto-Seeds Credentials" --> API
@@ -62,6 +72,7 @@ graph TD
 
 **Backend:** Node.js, Express.js
 **Database:** PostgreSQL 15 (Alpine)
+**Queue:** Redis, Bull (for Async Jobs)
 **Frontend (Dashboard):** React.js, Tailwind CSS, Recharts
 **Frontend (Checkout):** React.js, Axios
 **Infrastructure:** Docker, Docker Compose
@@ -73,7 +84,7 @@ graph TD
 
 ### Prerequisites
 
-Ensure Docker Desktop is installed and running.
+Ensure **Docker Desktop** is installed and running on your machine.
 
 ### 1. Clone the Repository
 
@@ -84,52 +95,84 @@ cd payment-gateway
 
 ### 2. Configure Environment
 
-Copy the example configuration file to create your local secrets.
+Copy the example configuration file. The default values are already optimized for the Docker environment.
 
 ```bash
 cp .env.example .env
 ```
 
-(No changes needed to `.env` for standard testing; defaults are set for Docker.)
-
 ### 3. Start the Application
+
+Run the following command to build and start all services (API, Database, Redis, Worker, Frontends, and Test Receiver).
 
 ```bash
 docker-compose up -d --build
 ```
 
-Wait ~10 seconds for the database to initialize and seed the test merchant.
+Wait ~15-30 seconds for all containers to initialize. The database will automatically seed a "Test Merchant" account.
 
 ---
 
 ## 🌐 Access the Services
 
-| Service               | URL                                            | Credentials                              |
-| --------------------- | ---------------------------------------------- | ---------------------------------------- |
-| 🛍️ Checkout Page      | [http://localhost:3001](http://localhost:3001) | No login required                        |
-| 📊 Merchant Dashboard | [http://localhost:3000](http://localhost:3000) | Email: `test@example.com` <br> Pass: Any |
+| Service | URL | Credentials |
+| :--- | :--- | :--- |
+| **🛍️ Checkout Page** | [http://localhost:5173](http://localhost:5173) | No login required |
+| **📊 Merchant Dashboard** | [http://localhost:3000](http://localhost:3000) | **Email:** `test@example.com` <br> **Pass:** Any password |
 | 🔌 Backend API        | [http://localhost:8000](http://localhost:8000) | `x-api-key: key_test_abc123`             |
+| 📡 Test Webhook Receiver | Internal Docker Service | Accessible via `http://localhost:4000` (Locally) |
+| 📦 CDN (SDK)          | [http://localhost:3002/checkout.js](http://localhost:3002/checkout.js) | Embeddable Script |
 
 ---
 
-## 🧪 Testing Guide (Magic Triggers)
+## 🔌 How to use the Embeddable SDK
 
-The system uses specific input values to force deterministic outcomes for demonstration and grading.
+You can embed the payment modal in any website using the following script:
 
-### 💳 Card Payments
+```html
+<script src="http://localhost:3002/checkout.js"></script>
+<script>
+  const gateway = new window.PaymentGateway({
+    key: 'key_test_abc123',
+    orderId: 'order_123...', // Generated from backend
+    onSuccess: (data) => console.log('Payment Success:', data),
+    onFailure: (data) => console.error('Payment Failed:', data),
+    onClose: () => console.log('Modal Closed')
+  });
+  
+  // Open the modal
+  gateway.open();
+</script>
+```
 
-| Scenario         | Card Number                               | Result             |
-| ---------------- | ----------------------------------------- | ------------------ |
-| Success          | Ends with `4242` (e.g., 4242424242424242) | ✅ Success         |
-| Bank Failure     | Ends with `0000` (e.g., 4242424242420000) | ❌ Failed          |
-| Validation Error | Invalid Luhn or CVV length                | ⚠️ 400 Bad Request |
+---
 
-### 📱 UPI Payments
+## 🧪 Testing Guidelines
 
-| Scenario     | VPA (UPI ID)                      | Result     |
-| ------------ | --------------------------------- | ---------- |
-| Success      | Any valid format (e.g., user@upi) | ✅ Success |
-| Bank Failure | fail@bank                         | ❌ Failed  |
+### 1. Happy Path (Success)
+1.  Open the **Dashboard** (`localhost:3000`) and login.
+2.  Open the **Checkout Page** (`localhost:5173`).
+3.  Click **"✨ Generate Test Order"**.
+4.  Choose **Card**, enter **Any Name**, **Any Expiry**, **Any CVV**.
+5.  Enter Card Number: `4242424242424242` (Success Trigger).
+6.  Click **Pay**. You will see a "Success" screen.
+7.  Check **Dashboard**: The transaction will appear as "Success".
+8.  Check **Webhooks (on Dashboard)**: You will see a `payment.success` event with status **"Delivered"**.
+
+### 2. Failure Scenarios (Magic Triggers)
+
+**Card Payments:**
+| Scenario | Card Number (Last 4) | Result |
+| :--- | :--- | :--- |
+| **Success** | `...4242` | ✅ Payment Succeeded |
+| **Bank Failure** | `...0000` | ❌ Payment Failed |
+| **Validation Error** | Wrong Luhn or Invalid CVV | ⚠️ 400 Bad Request |
+
+**UPI Payments:**
+| Scenario | UPI ID (VPA) | Result |
+| :--- | :--- | :--- |
+| **Success** | `user@upi` | ✅ Payment Succeeded |
+| **Bank Failure** | `fail@bank` | ❌ Payment Failed |
 
 ---
 
@@ -137,101 +180,60 @@ The system uses specific input values to force deterministic outcomes for demons
 
 **Base URL:** `http://localhost:8000/api/v1`
 
-### 1. Health Check
+### 1. Create Order (Authenticated)
+**POST** `/orders`
+- **Headers:** `x-api-key: key_test_abc123`, `x-api-secret: secret_test_xyz789`
+- **Body:** `{ "amount": 50000, "currency": "INR" }`
 
-```http
-GET /health
-```
+### 2. Process Payment (Public)
+**POST** `/payments/public`
+- **Body:** `{ "order_id": "order_...", "method": "card", "card": { ... } }`
 
-**Response: 200 OK**
+### 3. Poll Payment Status (Public) (NEW)
+**GET** `/payments/:id/public`
+- **Response:** `{ "id": "pay_...", "status": "success" }`
 
-```json
-{
-  "status": "healthy",
-  "database": "connected",
-  "timestamp": "..."
-}
-```
-
-### 2. Create Order
-
-```http
-POST /orders
-```
-
-**Headers:** `x-api-key`, `x-api-secret`
-
-**Body**
-
-```json
-{
-  "amount": 50000,
-  "currency": "INR"
-}
-```
-
-**Response:** `201 Created` → `{ "id": "order_..." }`
-
-### 3. Process Payment
-
-```http
-POST /payments
-```
-
-**Body**
-
-```json
-{
-  "order_id": "order_123...",
-  "method": "card",
-  "card": {
-    "number": "4242...",
-    "expiry_month": "12",
-    "expiry_year": "2030",
-    "cvv": "123"
-  }
-}
-```
-
-**Response:** `201 Created` – Payment status (`Processing → Success / Failed`)
+### 4. Merchant Stats (Authenticated)
+**GET** `/payments/stats`
+- **Headers:** `x-api-key: ...`
 
 ---
 
 ## 🗄️ Database Schema
 
-The database is automatically seeded with a test merchant on startup.
+The database is automatically seeded.
 
 ```mermaid
 erDiagram
     MERCHANTS ||--o{ ORDERS : creates
     ORDERS ||--o{ PAYMENTS : has
+    PAYMENTS ||--o{ REFUNDS : has
+    MERCHANTS ||--o{ WEBHOOK_LOGS : has
 
     MERCHANTS {
         string id PK
         string email
         string api_key
-        string api_secret
-        timestamp created_at
+        string webhook_url
     }
 
     ORDERS {
-        string id PK "order_..."
-        string merchant_id FK
-        int amount "in paise"
-        string currency
-        string status "created"
-        timestamp created_at
+        string id PK
+        int amount
+        string status
     }
 
     PAYMENTS {
-        string id PK "pay_..."
-        string order_id FK
-        string status "success/failed"
-        string method "card/upi"
-        string card_last4
-        string vpa
-        string error_code
-        timestamp created_at
+        string id PK
+        string status "success/failed/pending"
+        string method
+    }
+
+    REFUNDS {
+        string id PK
+        string payment_id FK
+        int amount
+        string status
     }
 ```
 
@@ -241,25 +243,12 @@ erDiagram
 
 ```bash
 payment-gateway/
-├── backend/            # Express.js API & Database Logic
-│   ├── src/controllers # Request Handlers
-│   ├── src/config      # DB Connection & Init
-│   └── src/routes      # API Routes
+├── backend/            # Express.js API, Workers, Bull Queues
 ├── frontend/           # React Merchant Dashboard
-│   └── src/            # Dashboard UI Components
-├── checkout-page/      # React Customer Checkout
-│   └── src             # Payment Forms & Logic
-├── docs/               # Documentations and Images
-│   ├── images/
-│   │   ├── architecture.png
-│   │   ├── db-schema.png
-│   │   ├── dashboard.png
-│   │   ├── checkout.png
-│   │   ├── order-id-generation.png
-│   │   ├── payment-status.png
-│   │   └── transactions.png
-│   ├── API_DOCUMENTATION.md
-├── docker-compose.yml  # Container Orchestration
-├── .env.example        # Environment Config Template
-└── README.md           # Project Documentation
+├── checkout-page/      # React Customer Checkout Page
+├── checkout-widget/    # Embeddable JS SDK
+├── test-merchant/      # Dockerized Webhook Receiver (Port 4000)
+├── docker-compose.yml  # Orchestration
+├── .env.example        # Configuration
+└── README.md           # This file
 ```

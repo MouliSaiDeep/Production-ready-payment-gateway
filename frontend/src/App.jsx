@@ -9,8 +9,8 @@ import NavBar from "./components/NavBar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
-import ApiDocs from "./pages/ApiDocs"; // Ensure this file exists in src/pages/
-import Webhooks from "./pages/Webhooks"; // Ensure this file exists in src/pages/
+import ApiDocs from "./pages/ApiDocs";
+import Webhooks from "./pages/WebhookConfig"; // FIXED: Imports your actual file
 import NotFound from "./pages/NotFound";
 import "./App.css";
 
@@ -35,12 +35,13 @@ function App() {
           element={<Login setIsAuthenticated={setIsAuthenticated} />}
         />
 
-        {/* Protected Dashboard Routes */}
+        {/* Protected Routes */}
         <Route
           path="/*"
           element={
             isAuthenticated ? (
               <div className="app-container">
+                {/* NavBar is now safely imported */}
                 <NavBar
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}

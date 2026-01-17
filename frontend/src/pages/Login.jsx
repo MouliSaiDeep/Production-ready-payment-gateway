@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "./Auth.css";
 
 const Login = ({ setIsAuthenticated }) => {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("test@example.com"); // Default for convenience
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,25 +15,36 @@ const Login = ({ setIsAuthenticated }) => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
+      // 1. Fetch the Test Merchant data directly (Since /auth/login is missing)
+      const response = await fetch(
+        "http://localhost:8000/api/v1/test/merchant",
+      );
 
       if (!response.ok) {
-        setError(data.message || "Login failed");
+        throw new Error("Could not connect to backend");
+      }
+
+      const merchant = await response.json();
+
+      // 2. Simple validation
+      if (email !== merchant.email) {
+        setError("Invalid email. Please use: " + merchant.email);
+        setLoading(false);
         return;
       }
 
-      localStorage.setItem("authToken", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      // 3. Save Session Data
+      // We create a "dummy" token because your backend uses API Keys, not JWTs
+      localStorage.setItem("authToken", "session_token_123");
+      localStorage.setItem("user", JSON.stringify({ email: merchant.email }));
+      localStorage.setItem("merchant", JSON.stringify(merchant)); // Crucial for Dashboard
+
+      // 4. Update State & Redirect
       setIsAuthenticated(true);
       navigate("/dashboard");
     } catch (err) {
-      setError("Network error. Please try again.");
+      console.error("Login Error:", err);
+      setError("Login failed. Ensure Backend is running on Port 8000.");
     } finally {
       setLoading(false);
     }
@@ -58,7 +69,7 @@ const Login = ({ setIsAuthenticated }) => {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="test@example.com"
               required
             />
           </div>
@@ -70,22 +81,19 @@ const Login = ({ setIsAuthenticated }) => {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="Any password works"
               required
             />
           </div>
 
           <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Verifying..." : "Sign In"}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Don't have an account?{" "}
-            <a href="/register" className="auth-link">
-              Sign up
-            </a>
+            Test Account: <b>test@example.com</b>
           </p>
         </div>
       </div>

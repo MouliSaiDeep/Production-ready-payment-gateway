@@ -60,6 +60,15 @@ webhookRouter.get('/', authenticateMerchant, webhookController.listWebhooks);
 webhookRouter.post('/:id/retry', authenticateMerchant, webhookController.retryWebhook);
 app.use('/api/v1/webhooks', webhookRouter);
 
+// --- Merchant Routes ---
+const merchantController = require('./controllers/merchantController');
+const merchantRouter = express.Router();
+merchantRouter.put('/', authenticateMerchant, merchantController.updateWebhookConfig);
+merchantRouter.get('/', authenticateMerchant, merchantController.getMerchantDetails);
+merchantRouter.post('/secret/regenerate', authenticateMerchant, merchantController.regenerateSecret);
+app.use('/api/v1/merchant', merchantRouter);
+// -----------------------
+
 // 6. Test/Job Routes
 const testRouter = express.Router();
 testRouter.get('/jobs/status', jobController.getJobStatus);

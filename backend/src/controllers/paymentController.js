@@ -51,8 +51,8 @@ const createPayment = async (req, res) => {
 
         // --- Trigger Webhooks ---
         const webhookPayload = { payment };
-        await webhookQueue.add({ merchantId, event: 'payment.created', payload: webhookPayload });
-        await webhookQueue.add({ merchantId, event: 'payment.pending', payload: webhookPayload });
+        await webhookQueue.add({ merchantId, event: 'payment.created', payload: webhookPayload }, { attempts: 5, backoff: { type: 'webhookBackoff' } });
+        await webhookQueue.add({ merchantId, event: 'payment.pending', payload: webhookPayload }, { attempts: 5, backoff: { type: 'webhookBackoff' } });
 
         // D. Enqueue Job
         await paymentQueue.add({ paymentId: payment.id });
@@ -118,6 +118,9 @@ const createRefund = async (req, res) => {
             merchantId,
             event: 'refund.created',
             payload: { refund: { id: refundId, payment_id, amount, reason, status: 'pending' } }
+        }, {
+            attempts: 5,
+            backoff: { type: 'webhookBackoff' }
         });
 
         await refundQueue.add({ refundId });
@@ -203,4 +206,19 @@ const capturePayment = async (req, res) => {
     }
 };
 
-module.exports = { createPayment, getPayment, listPayments, getStats, capturePayment, createRefund, getRefund };
+const getPublicPaymentStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Fetch only necessary public fields
+        const result = await db.query('SELECT id, status, amount, currency, method, created_at FROM payments WHERE id = $1', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: { code: 'NOT_FOUND_ERROR', description: 'Payment not found' } });
+        }
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: { code: 'INTERNAL_SERVER_ERROR', description: 'Internal error' } });
+    }
+};
+
+module.exports = { createPayment, getPayment, listPayments, getStats, capturePayment, createRefund, getRefund, getPublicPaymentStatus };

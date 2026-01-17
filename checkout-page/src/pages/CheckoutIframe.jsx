@@ -4,7 +4,7 @@ import "../index.css";
 
 const API_BASE = "http://localhost:8000/api/v1";
 
-// --- OLD UI ICONS ---
+// --- KEEP YOUR EXISTING ICONS HERE ---
 const CardIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -113,7 +113,7 @@ export default function CheckoutIframe() {
       setManualOrderId(res.data.id);
       fetchOrder(res.data.id);
     } catch (err) {
-      setError("Failed to create test order. Check Worker/API.");
+      setError("Failed to create test order. Check Worker.");
       setLoading(false);
     }
   };
@@ -147,7 +147,6 @@ export default function CheckoutIframe() {
         payload.card = {
           number: cardData.number,
           expiry_month: month,
-          // FIX: Automatically convert "26" to "2026" for the API
           expiry_year: year.length === 2 ? "20" + year : year,
           cvv: cardData.cvv,
           holder_name: cardData.name,
@@ -157,31 +156,62 @@ export default function CheckoutIframe() {
       const res = await axios.post(`${API_BASE}/payments/public`, payload);
       pollPaymentStatus(res.data.id);
     } catch (err) {
-      console.error("Payment API Error:", err);
+      console.error(err);
       setPaymentState("failed");
     }
   };
 
+  // --- FIXED POLLING LOGIC ---
   const pollPaymentStatus = (paymentId) => {
     let attempts = 0;
     const interval = setInterval(async () => {
       attempts++;
       try {
-        const res = await axios.get(`${API_BASE}/payments/${paymentId}`);
+        // FIX: Added headers here so the backend allows us to read the status
+        const res = await axios.get(`${API_BASE}/payments/${paymentId}/public`, {
+          headers: {
+            "x-api-key": "key_test_abc123",
+            "x-api-secret": "secret_test_xyz789",
+          },
+        });
+
         const status = res.data.status;
+
         if (status === "success") {
           clearInterval(interval);
           setPaymentResult(res.data);
           setPaymentState("success");
-        } else if (status === "failed" || attempts > 10) {
+
+          // --- SDK INTEGRATION ---
+          window.parent.postMessage({
+            type: 'payment_success',
+            data: { paymentId: res.data.id }
+          }, '*');
+
+        } else if (status === "failed") {
           clearInterval(interval);
           setPaymentState("failed");
+
+          // --- SDK INTEGRATION ---
+          window.parent.postMessage({
+            type: 'payment_failed',
+            data: { error: res.data.error_description || 'Payment Failed' }
+          }, '*');
+
+        } else if (attempts > 60) {
+          clearInterval(interval);
+          setError("Transaction timed out.");
+          setPaymentState("failed");
+
+          window.parent.postMessage({
+            type: 'payment_failed',
+            data: { error: 'Transaction timed out' }
+          }, '*');
         }
       } catch (err) {
-        clearInterval(interval);
-        setPaymentState("failed");
+        console.warn("Polling retry...", err);
       }
-    }, 2000);
+    }, 1000);
   };
 
   if (loading)
@@ -191,7 +221,7 @@ export default function CheckoutIframe() {
       </div>
     );
 
-  // --- UI RENDER (Exact Old UI) ---
+  // --- UI RENDER (Standard) ---
   if (!order) {
     return (
       <div
@@ -391,18 +421,10 @@ export default function CheckoutIframe() {
         <div data-test-id="success-state" className="state-container">
           <CheckCircle />
           <h2>Payment Successful!</h2>
-          <p className="label" style={{ marginBottom: "0.5rem" }}>
-            Payment ID
-          </p>
+          <p className="label">Payment ID</p>
           <span className="id-badge" data-test-id="payment-id">
             {paymentResult?.id}
           </span>
-          <p
-            data-test-id="success-message"
-            style={{ marginTop: "1.5rem", color: "#111827" }}
-          >
-            Your transaction has been completed.
-          </p>
         </div>
       )}
 
@@ -410,9 +432,6 @@ export default function CheckoutIframe() {
         <div data-test-id="error-state" className="state-container">
           <XCircle />
           <h2 style={{ color: "#ef4444" }}>Payment Failed</h2>
-          <p data-test-id="error-message" className="label">
-            The transaction could not be processed.
-          </p>
           <button
             data-test-id="retry-button"
             className="retry-btn"

@@ -3,13 +3,17 @@ const { paymentQueue, webhookQueue, refundQueue } = require('../config/queue');
 // GET /api/v1/test/jobs/status
 const getJobStatus = async (req, res) => {
     try {
-        const counts = await paymentQueue.getJobCounts();
+        const paymentCounts = await paymentQueue.getJobCounts();
+        const webhookCounts = await webhookQueue.getJobCounts();
+        const refundCounts = await refundQueue.getJobCounts();
+
+        const getCount = (prop) => paymentCounts[prop] + webhookCounts[prop] + refundCounts[prop];
 
         res.json({
-            pending: counts.waiting + counts.delayed,
-            processing: counts.active,
-            completed: counts.completed,
-            failed: counts.failed,
+            pending: getCount('waiting') + getCount('delayed'),
+            processing: getCount('active'),
+            completed: getCount('completed'),
+            failed: getCount('failed'),
             worker_status: "running"
         });
     } catch (error) {

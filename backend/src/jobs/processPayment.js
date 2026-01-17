@@ -20,7 +20,7 @@ const processPayment = async (job) => {
 
         // 3. Determine Outcome
         let isSuccess = false;
-        
+
         if (process.env.TEST_MODE === 'true') {
             // Deterministic Test Mode
             isSuccess = process.env.TEST_PAYMENT_SUCCESS !== 'false';
@@ -67,6 +67,11 @@ const processPayment = async (job) => {
                     vpa: payment.vpa,
                     created_at: payment.created_at
                 }
+            }
+        }, {
+            attempts: 5,
+            backoff: {
+                type: 'webhookBackoff'
             }
         });
 

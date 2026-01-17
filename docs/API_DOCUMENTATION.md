@@ -190,3 +190,97 @@ _These endpoints allow the Checkout Page to function without exposing API Secret
 
 - **`GET /api/v1/orders/:id/public`**: Fetches order details without auth headers.
 - **`POST /api/v1/payments/public`**: Processes payment without auth headers (Backend validates Order ID ownership internally).
+- **`GET /api/v1/payments/:id/public`**: Fetches limited payment status without auth headers.
+
+---
+
+## ↩️ Refund & Capture Endpoints
+
+### 7. Capture Payment
+
+Captures an authorized payment (if separate auth/capture flow is used, though currently auto-capture is standard).
+
+- **Endpoint:** `POST /api/v1/payments/:payment_id/capture`
+- **Authentication:** Required
+- **Success Response:** `200 OK`
+
+### 8. Create Refund
+
+Initiates a refund for a successful payment.
+
+- **Endpoint:** `POST /api/v1/payments/:payment_id/refunds`
+- **Authentication:** Required
+- **Request Body:**
+  ```json
+  {
+    "amount": 500, // Amount to refund in paise
+    "reason": "Customer requested"
+  }
+  ```
+- **Success Response:** `201 Created`
+  ```json
+  {
+    "id": "rfnd_abc123",
+    "payment_id": "pay_xyz789",
+    "amount": 500,
+    "status": "pending"
+  }
+  ```
+
+### 9. Get Refund Details
+
+- **Endpoint:** `GET /api/v1/refunds/:refund_id`
+- **Authentication:** Required
+- **Success Response:** `200 OK`
+
+---
+
+## 🔔 Webhook Endpoints
+
+### 10. List Webhook Logs
+
+Fetches recent webhook delivery attempts.
+
+- **Endpoint:** `GET /api/v1/webhooks`
+- **Authentication:** Required
+- **Success Response:** `200 OK` (Array of logs)
+
+### 11. Retry Webhook
+
+Manually retries a failed webhook delivery.
+
+- **Endpoint:** `POST /api/v1/webhooks/:webhook_id/retry`
+- **Authentication:** Required
+- **Success Response:** `200 OK`
+
+---
+
+## ⚙️ Merchant Configuration
+
+### 12. Get Merchant Config
+
+- **Endpoint:** `GET /api/v1/merchant`
+- **Authentication:** Required
+- **Success Response:** `200 OK`
+  ```json
+  {
+      "id": "...",
+      "webhook_url": "http://...",
+      "webhook_secret": "whsec_..."
+  }
+  ```
+
+### 13. Update Merchant Config
+
+- **Endpoint:** `PUT /api/v1/merchant`
+- **Authentication:** Required
+- **Request Body:** `{ "webhook_url": "http://..." }`
+- **Success Response:** `200 OK`
+
+### 14. Regenerate Webhook Secret
+
+Rotates the webhook signing secret.
+
+- **Endpoint:** `POST /api/v1/merchant/secret/regenerate`
+- **Authentication:** Required
+- **Success Response:** `200 OK`
