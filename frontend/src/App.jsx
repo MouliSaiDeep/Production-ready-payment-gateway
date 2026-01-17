@@ -1,25 +1,72 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Login from "./Login";
-import Dashboard from "./Dashboard";
-import Transactions from "./Transactions";
+import React, { useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import NavBar from "./components/NavBar";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Transactions from "./pages/Transactions";
+import ApiDocs from "./pages/ApiDocs"; // Ensure this file exists in src/pages/
+import Webhooks from "./pages/Webhooks"; // Ensure this file exists in src/pages/
+import NotFound from "./pages/NotFound";
+import "./App.css";
 
 function App() {
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem("authToken"),
+  );
+
+  const handleLogout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+    setIsAuthenticated(false);
+  };
+
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        {/* Default redirect to login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Public Login */}
+        <Route
+          path="/login"
+          element={<Login setIsAuthenticated={setIsAuthenticated} />}
+        />
 
-        {/* Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/transactions" element={<Transactions />} />
-
-        {/* Fallback for unknown routes */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Protected Dashboard Routes */}
+        <Route
+          path="/*"
+          element={
+            isAuthenticated ? (
+              <div className="app-container">
+                <NavBar
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  onLogout={handleLogout}
+                />
+                <div className="content-wrapper">
+                  <Routes>
+                    <Route
+                      path="/"
+                      element={<Navigate to="/dashboard" replace />}
+                    />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/transactions" element={<Transactions />} />
+                    <Route path="/webhooks" element={<Webhooks />} />
+                    <Route path="/api-docs" element={<ApiDocs />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </div>
+              </div>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 

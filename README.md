@@ -6,12 +6,12 @@ A production-ready, containerized Payment Gateway Simulator built for the Capsto
 
 ## 🚀 Features
 
-* **Full-Stack Simulation:** Complete flow from Order Creation → Checkout → Payment Processing → Merchant Analytics.
-* **Dockerized Environment:** Entire stack (Frontend, Backend, Database) spins up with a single command.
-* **Merchant Dashboard:** Real-time transaction history, success rate analytics, and credential management.
-* **Universal Checkout:** Supports both Card (Luhn validation, Network detection) and UPI payment methods.
-* **Simulation Engine:** Deterministic testing using specific inputs to force Success, Failure, or Pending states.
-* **Auto-Seeding:** Database automatically initializes with test merchant credentials on startup.
+- **Full-Stack Simulation:** Complete flow from Order Creation → Checkout → Payment Processing → Merchant Analytics.
+- **Dockerized Environment:** Entire stack (Frontend, Backend, Database) spins up with a single command.
+- **Merchant Dashboard:** Real-time transaction history, success rate analytics, and credential management.
+- **Universal Checkout:** Supports both Card (Luhn validation, Network detection) and UPI payment methods.
+- **Simulation Engine:** Deterministic testing using specific inputs to force Success, Failure, or Pending states.
+- **Auto-Seeding:** Database automatically initializes with test merchant credentials on startup.
 
 ---
 
@@ -28,19 +28,19 @@ graph TD
 
     subgraph "Docker Container Network"
         direction TB
-        
+
         subgraph "Public Zone (Port 3001)"
             Checkout[🛒 Checkout App]
         end
-        
+
         subgraph "Private Zone (Port 3000)"
             Dashboard[📊 Dashboard App]
         end
-        
+
         subgraph "Core System (Port 8000)"
             API[⚙️ Backend API]
         end
-        
+
         subgraph "Data Layer (Port 5432)"
             DB[(🗄️ PostgreSQL)]
         end
@@ -48,10 +48,10 @@ graph TD
 
     Customer -->|Pays for Order| Checkout
     Merchant -->|Views Analytics| Dashboard
-    
+
     Checkout -->|POST /payments| API
     Dashboard -->|GET /stats| API
-    
+
     API -->|Read/Write| DB
     DB -- "Auto-Seeds Credentials" --> API
 ```
@@ -106,7 +106,7 @@ Wait ~10 seconds for the database to initialize and seed the test merchant.
 
 | Service               | URL                                            | Credentials                              |
 | --------------------- | ---------------------------------------------- | ---------------------------------------- |
-| 🛍️ Checkout Page     | [http://localhost:3001](http://localhost:3001) | No login required                        |
+| 🛍️ Checkout Page      | [http://localhost:3001](http://localhost:3001) | No login required                        |
 | 📊 Merchant Dashboard | [http://localhost:3000](http://localhost:3000) | Email: `test@example.com` <br> Pass: Any |
 | 🔌 Backend API        | [http://localhost:8000](http://localhost:8000) | `x-api-key: key_test_abc123`             |
 
@@ -120,14 +120,14 @@ The system uses specific input values to force deterministic outcomes for demons
 
 | Scenario         | Card Number                               | Result             |
 | ---------------- | ----------------------------------------- | ------------------ |
-| Success          | Ends with `4242` (e.g., 4242424242424242) | ✅ Success          |
-| Bank Failure     | Ends with `0000` (e.g., 4242424242420000) | ❌ Failed           |
+| Success          | Ends with `4242` (e.g., 4242424242424242) | ✅ Success         |
+| Bank Failure     | Ends with `0000` (e.g., 4242424242420000) | ❌ Failed          |
 | Validation Error | Invalid Luhn or CVV length                | ⚠️ 400 Bad Request |
 
 ### 📱 UPI Payments
 
-| Scenario     | VPA (UPI ID)                      | Result    |
-| ------------ | --------------------------------- | --------- |
+| Scenario     | VPA (UPI ID)                      | Result     |
+| ------------ | --------------------------------- | ---------- |
 | Success      | Any valid format (e.g., user@upi) | ✅ Success |
 | Bank Failure | fail@bank                         | ❌ Failed  |
 
@@ -263,6 +263,3 @@ payment-gateway/
 ├── .env.example        # Environment Config Template
 └── README.md           # Project Documentation
 ```
-
-## 📽️Youtube Video[link]
-https://youtu.be/n5RO39SIJR8

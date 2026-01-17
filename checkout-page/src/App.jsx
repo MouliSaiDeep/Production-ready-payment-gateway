@@ -1,11 +1,17 @@
 import React from "react";
-import Checkout from "./Checkout";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import CheckoutIframe from "./pages/CheckoutIframe";
 
 function App() {
   return (
-    <div className="app-container">
-      <Checkout />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {/* 1. The actual page */}
+        <Route path="/checkout" element={<CheckoutIframe />} />
+
+        <Route path="*" element={<Navigate to="/checkout" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

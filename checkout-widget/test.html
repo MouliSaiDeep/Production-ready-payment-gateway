@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <button id="pay-button">Pay Now</button>
+    <script src="./dist/checkout.js"></script>
+    <script>
+        document.getElementById('pay-button').addEventListener('click', function () {
+            const checkout = new PaymentGateway({
+                key: 'key_test_abc123',
+                orderId: 'order_12345', // Replace with a real Order ID from your DB
+                onSuccess: (data) => alert('Success: ' + data.paymentId),
+                onFailure: (err) => console.error(err)
+            });
+            checkout.open();
+        });
+    </script>
+</body>
+
+</html>

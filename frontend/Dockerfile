@@ -1,11 +1,19 @@
-FROM node:20-alpine as build
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+# Use Node.js for Development
+FROM node:20-alpine
 
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose the port Vite runs on
+EXPOSE 5173
+
+# Start Vite
+CMD ["npm", "run", "dev", "--", "--host"]
