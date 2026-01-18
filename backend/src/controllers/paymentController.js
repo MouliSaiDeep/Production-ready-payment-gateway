@@ -5,14 +5,14 @@ const validation = require('../services/validationService');
 const { paymentQueue, refundQueue, webhookQueue } = require('../config/queue');
 const db = require('../config/db');
 
-// --- 1. CREATE PAYMENT ---
+
 const createPayment = async (req, res) => {
     const { order_id, method, vpa, card } = req.body;
     const merchantId = req.merchant ? req.merchant.id : null;
     const idempotencyKey = req.headers['idempotency-key'];
 
     try {
-        // A. Idempotency Check
+
         if (idempotencyKey && merchantId) {
             const idemQuery = `SELECT * FROM idempotency_keys WHERE key = $1 AND merchant_id = $2`;
             const idemRes = await db.query(idemQuery, [idempotencyKey, merchantId]);
@@ -26,7 +26,7 @@ const createPayment = async (req, res) => {
             }
         }
 
-        // B. Validation
+
         const order = await orderService.getOrderById(order_id, merchantId);
         if (!order) return res.status(404).json({ error: { code: 'NOT_FOUND_ERROR', description: 'Order not found' } });
 
@@ -46,18 +46,18 @@ const createPayment = async (req, res) => {
             return res.status(400).json({ error: { code: 'BAD_REQUEST_ERROR', description: 'Invalid method' } });
         }
 
-        // C. Create Payment Record
+
         const payment = await paymentService.createPayment(order, order.merchant_id, paymentData);
 
-        // --- Trigger Webhooks ---
+
         const webhookPayload = { payment };
         await webhookQueue.add({ merchantId, event: 'payment.created', payload: webhookPayload }, { attempts: 5, backoff: { type: 'webhookBackoff' } });
         await webhookQueue.add({ merchantId, event: 'payment.pending', payload: webhookPayload }, { attempts: 5, backoff: { type: 'webhookBackoff' } });
 
-        // D. Enqueue Job
+
         await paymentQueue.add({ paymentId: payment.id });
 
-        // E. Save Idempotency
+
         if (idempotencyKey && merchantId) {
             const expiresAt = new Date();
             expiresAt.setHours(expiresAt.getHours() + 24);
@@ -75,7 +75,7 @@ const createPayment = async (req, res) => {
     }
 };
 
-// --- 2. CREATE REFUND ---
+
 const createRefund = async (req, res) => {
     const { payment_id } = req.params;
     const { amount, reason } = req.body;
@@ -103,7 +103,7 @@ const createRefund = async (req, res) => {
             return res.status(400).json({ error: { code: 'BAD_REQUEST_ERROR', description: 'Refund amount exceeds available amount' } });
         }
 
-        // --- FIX: Use Crypto for exactly 16 hex chars ---
+
         const random = crypto.randomBytes(8).toString('hex');
         const refundId = `rfnd_${random}`;
         // ------------------------------------------------
@@ -140,7 +140,7 @@ const createRefund = async (req, res) => {
     }
 };
 
-// --- 3. GET REFUND ---
+
 const getRefund = async (req, res) => {
     try {
         const { id } = req.params;
@@ -155,7 +155,7 @@ const getRefund = async (req, res) => {
     }
 };
 
-// --- Standard Getters & Capture ---
+
 const getPayment = async (req, res) => {
     try {
         const payment = await paymentService.getPaymentById(req.params.id);

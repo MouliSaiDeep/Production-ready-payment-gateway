@@ -13,7 +13,7 @@ export default function WebhookConfig() {
 
   const fetchLogs = async () => {
     try {
-      // 1. Get the Key from Local Storage
+
       const storedMerchant = localStorage.getItem("merchant");
 
       if (!storedMerchant) {
@@ -28,12 +28,11 @@ export default function WebhookConfig() {
         throw new Error("API Key missing from session.");
       }
 
-      // 2. Fetch Logs with BOTH Key and Secret
+
       const res = await axios.get(`${API_BASE}/webhooks`, {
         headers: {
           "x-api-key": merchant.api_key,
-          // FIX: We must include the secret. Since the Login API doesn't return it,
-          // we use the known test secret for this environment.
+
           "x-api-secret": "secret_test_xyz789",
         },
       });
@@ -108,7 +107,7 @@ export default function WebhookConfig() {
 
   // ... (keep retryWebhook) ...
 
-  // --- UI RENDER ---
+
   return (
     <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
       {/* ... (Header) ... */}
@@ -191,10 +190,14 @@ export default function WebhookConfig() {
                   <span
                     className={`status-badge ${log.status === "success" ? "status-success" : "status-failed"}`}
                   >
-                    {log.status === "success" ? "Delivered" : "Failed"}
+                    {log.status}
                   </span>
                 </td>
-                <td>{log.event}</td>
+                <td>
+                  <span style={{ fontFamily: "monospace", background: "#f3f4f6", padding: "4px 8px", borderRadius: "4px", fontSize: "0.85rem", border: "1px solid #e5e7eb" }}>
+                    {log.event}
+                  </span>
+                </td>
                 <td>
                   {new Date(
                     log.created_at || log.last_attempt,

@@ -6,19 +6,19 @@ const processPayment = async (job) => {
     console.log(`[Job] Processing payment: ${paymentId}`);
 
     try {
-        // 1. Fetch Payment
+
         const res = await db.query('SELECT * FROM payments WHERE id = $1', [paymentId]);
         if (res.rows.length === 0) throw new Error('Payment not found');
         const payment = res.rows[0];
 
-        // 2. Simulate Delay (5-10s) or use Test Delay
+
         let delay = Math.floor(Math.random() * 5000) + 5000;
         if (process.env.TEST_MODE === 'true' && process.env.TEST_PROCESSING_DELAY) {
             delay = parseInt(process.env.TEST_PROCESSING_DELAY, 10);
         }
         await new Promise(resolve => setTimeout(resolve, delay));
 
-        // 3. Determine Outcome
+
         let isSuccess = false;
 
         if (process.env.TEST_MODE === 'true') {
@@ -34,7 +34,7 @@ const processPayment = async (job) => {
             }
         }
 
-        // 4. Update Database
+
         const status = isSuccess ? 'success' : 'failed';
         const errorCode = isSuccess ? null : 'PAYMENT_FAILED';
         const errorDesc = isSuccess ? null : 'Bank declined transaction';
@@ -51,8 +51,7 @@ const processPayment = async (job) => {
 
         console.log(`[Job] Payment ${paymentId} ${status}`);
 
-        // 5. Trigger Webhook Job
-        // We add this to the webhook queue to be processed by a separate worker
+
         await webhookQueue.add({
             merchantId: payment.merchant_id,
             event: isSuccess ? 'payment.success' : 'payment.failed',

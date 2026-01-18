@@ -4,7 +4,7 @@ import "../index.css";
 
 const API_BASE = "http://localhost:8000/api/v1";
 
-// --- KEEP YOUR EXISTING ICONS HERE ---
+
 const CardIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -161,13 +161,13 @@ export default function CheckoutIframe() {
     }
   };
 
-  // --- FIXED POLLING LOGIC ---
+
   const pollPaymentStatus = (paymentId) => {
     let attempts = 0;
     const interval = setInterval(async () => {
       attempts++;
       try {
-        // FIX: Added headers here so the backend allows us to read the status
+
         const res = await axios.get(`${API_BASE}/payments/${paymentId}/public`, {
           headers: {
             "x-api-key": "key_test_abc123",
@@ -182,7 +182,7 @@ export default function CheckoutIframe() {
           setPaymentResult(res.data);
           setPaymentState("success");
 
-          // --- SDK INTEGRATION ---
+
           window.parent.postMessage({
             type: 'payment_success',
             data: { paymentId: res.data.id }
@@ -192,7 +192,7 @@ export default function CheckoutIframe() {
           clearInterval(interval);
           setPaymentState("failed");
 
-          // --- SDK INTEGRATION ---
+
           window.parent.postMessage({
             type: 'payment_failed',
             data: { error: res.data.error_description || 'Payment Failed' }
@@ -221,7 +221,7 @@ export default function CheckoutIframe() {
       </div>
     );
 
-  // --- UI RENDER (Standard) ---
+
   if (!order) {
     return (
       <div
