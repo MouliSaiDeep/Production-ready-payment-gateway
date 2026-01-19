@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { getHealth } = require('./controllers/healthController');
+const { checkHealth } = require('./controllers/healthController');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const db = require('./config/db');
@@ -16,7 +16,8 @@ app.use(cors());
 app.use(express.json());
 
 // 1. Health Check
-app.get('/health', getHealth);
+app.get('/health', checkHealth);
+app.get('/api/v1/health', checkHealth); // Alias for consistency
 
 // 2. API Routes
 app.use('/api/v1/orders', orderRoutes);

@@ -1,23 +1,48 @@
 const db = require('../config/db');
+const { paymentQueue } = require('../config/queue');
 
-const getHealth = async (req, res) => {
-    let dbStatus = "disconnected";
-
-    try {
-        await db.query('SELECT 1');
-        dbStatus = "connected";
-    } catch (error) {
-        console.error('Health Check DB Error: ', error);
-    }
-
-    const response = {
+const checkHealth = async (req, res) => {
+    const health = {
         status: 'healthy',
-        database: dbStatus,
+        database: 'disconnected',
+        redis: 'disconnected',
+        worker: 'stopped',
         timestamp: new Date().toISOString()
     };
 
-    
-    res.status(200).json(response);
+    try {
+        // 1. Check Database
+        await db.query('SELECT 1');
+        health.database = 'connected';
+    } catch (e) {
+        // Database failed
+    }
+
+    try {
+        // 2. Check Redis
+        await paymentQueue.client.ping();
+        health.redis = 'connected';
+    } catch (e) {
+        // Redis failed
+    }
+
+    try {
+        // 3. Check Worker
+        const workerStatus = await paymentQueue.client.get('worker_status');
+        if (workerStatus === 'running') {
+            health.worker = 'running';
+        }
+    } catch (e) {
+        // Worker/Redis read failed
+    }
+
+    // Determine overall status
+    if (health.database !== 'connected' || health.redis !== 'connected') {
+        health.status = 'unhealthy';
+    }
+
+    // Return 200 with details (as requested), could be 503 if strict status checks needed
+    res.status(200).json(health);
 };
 
-module.exports = { getHealth };
+module.exports = { checkHealth };

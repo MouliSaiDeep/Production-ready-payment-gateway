@@ -30,3 +30,13 @@ refundQueue.process(async (job) => {
 });
 
 console.log('✅ Worker Service is listening for jobs...');
+
+// --- Heartbeat ---
+setInterval(async () => {
+    try {
+        // Use paymentQueue's client to set heartbeat (Expires in 30s)
+        await paymentQueue.client.set('worker_status', 'running', 'EX', 30);
+    } catch (err) {
+        console.error('Heartbeat Error:', err);
+    }
+}, 10000);
